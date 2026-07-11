@@ -12,7 +12,7 @@ local info = app.create({
 
     name = "stopwatch",
 
-    version = "1.0",
+    version = "1.1",
 
     author = "-ASTR-",
 
@@ -21,6 +21,22 @@ local info = app.create({
 })
 
 if INFO_ONLY then return info end
+
+--------------------------------------------------
+-- Optional system timer integration
+--
+-- OKOS 0.14.1+ ships lib/timer.lua, a background
+-- countdown that keeps running after this app exits.
+-- pcall-guarded so this package still works on older
+-- OKOS versions - the [B] option simply doesn't
+-- appear there.
+--------------------------------------------------
+
+local hasSystemTimer, systemTimer = pcall(use, "timer")
+
+if not hasSystemTimer then
+    systemTimer = nil
+end
 
 --------------------------------------------------
 -- State
@@ -214,7 +230,13 @@ local function draw(state, message, messageColor)
     print("[S] Start/Pause   [R] Reset   [M] Switch mode")
 
     if state.mode == "timer" then
+
         print("[D] Set duration (" .. state.timerDuration .. "s)")
+
+        if systemTimer then
+            print("[B] Continue in background")
+        end
+
     end
 
     print("[Q] Quit")
@@ -313,6 +335,28 @@ while true do
             timerId = os.startTimer(1)
 
             draw(state, message, messageColor)
+
+        elseif key == keys.b and state.mode == "timer" and systemTimer then
+
+            if state.seconds < 1 then
+
+                message = "Nothing to continue - timer is at zero."
+                messageColor = theme.get("error")
+
+                draw(state, message, messageColor)
+
+            else
+
+                systemTimer.start(state.seconds)
+
+                discardChar()
+                ui.clear()
+
+                print("Timer continues in the background: " .. formatTime(state.seconds) .. " left. Watch the panel; 'timer stop' cancels.")
+
+                return
+
+            end
 
         elseif key == keys.q then
 
